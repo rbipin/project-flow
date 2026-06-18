@@ -1,93 +1,129 @@
-# Firebase Firestore Migration Design
+# Firebase Firestore Migration + PWA Design
 
 **Date:** 2026-06-18
 **Status:** Approved
 
 ## Overview
 
-Migrate Project-Flow's persistence layer from `localStorage` to Firebase Firestore. Goals: multi-device sync, data safety, and enabling the `/view` read-only route to serve live cloud data. Scope is single-user for now, with Google Sign-in as the auth mechanism.
+Migrate Project-Flow to an offline-first PWA. Data is always read from and written to `localStorage` immediately (no latency, works offline). Firebase Firestore acts as a background sync target — changes are pushed asynchronously after every local write, and pulled on app load if Firestore has a newer version. Conflict resolution is last-write-wins using a `lastModified` timestamp.
 
-## Data Structure
-
-One Firestore document holds the entire project tree, mirroring the current localStorage blob:
+## Architecture
 
 ```
-/users/{userId}/data/projects
-  → { projects: ProjectNode[] }
+Read path:   localStorage → render (instant)
+             ↓ async
+             Firestore → if newer, update localStorage + re-render
+
+Write path:  localStorage (sync, immediate)
+             ↓ fire-and-forget
+             Firestore (async, non-blocking)
 ```
 
-One read on load, one write on save. No per-project documents, no schema migrations. The `ProjectNode[]` shape is unchanged.
+The app is always responsive. Firebase is never in the critical path.
+
+## Data Shape
+
+A `lastModified` ISO timestamp is added to the persisted object in both stores:
+
+```ts
+// localStorage key: 'project-tracker:v3'
+// Firestore: /users/{uid}/data/projects
+{
+  projects: ProjectNode[],  // unchanged
+  lastModified: string      // ISO 8601, e.g. "2026-06-18T10:32:00.000Z"
+}
+```
+
+`ProjectNode` shape is unchanged.
+
+## Conflict Resolution
+
+Last-write-wins using `lastModified`:
+
+- On load: read localStorage, render immediately, then fetch Firestore async. If Firestore `lastModified` > local `lastModified`, overwrite localStorage and re-render.
+- On save: write localStorage with updated `lastModified`, then push to Firestore async.
+- On reconnect (`window` `online` event): push current local state to Firestore (handles writes made while offline).
+
+No UI prompt, no merge logic. For a single-user tool, data-loss from conflicts is negligible — the last device to save wins.
 
 ## Auth
 
-**Google Sign-in** via Firebase Authentication.
+**Google Sign-in** via Firebase Authentication. Same as original design:
 
-- On first app load, if no active session, render a centered "Sign in with Google" button in place of the dashboard.
+- On first load, if signed out, render `<SignInScreen>` instead of the dashboard.
 - After sign-in, Firebase persists the session — subsequent visits auto-sign in silently.
-- Firestore security rules split read and write permissions:
+- Firestore rules split read and write permissions:
   ```
   allow read: if true;
   allow write: if request.auth.uid == "<owner-uid>";
   ```
-- Reads are public — anyone with the document path can read. This is required for the `/view` share link to work without forcing recipients to sign in.
-- Writes are locked to the owner's UID, set once in the Firestore rules after the first sign-in.
+- Public reads allow the `/view` share route to work without recipients signing in.
+- The owner UID is set once in the Firestore rules after first sign-in.
 
 ### Local Development Bypass
 
-Set `NEXT_PUBLIC_DEV_BYPASS_AUTH=true` in `.env.local` to skip Google Sign-in during development. When the flag is present, `getAuthUser()` in `lib/firebase.ts` returns a hardcoded `{ uid: "dev-user" }` object and skips all Firebase Auth calls. Firestore reads/writes use the path `/users/dev-user/data/projects`.
+Set `NEXT_PUBLIC_DEV_BYPASS_AUTH=true` in `.env.local`. When present, `getAuthUser()` returns `{ uid: "dev-user" }` and skips all Firebase Auth calls. `.env.local` is gitignored — never ships to production.
 
-`.env.local` is gitignored — the bypass never reaches production.
+## PWA
+
+Project-Flow becomes installable and fully offline-capable.
+
+### Files added
+- `public/manifest.json` — app name, short name, theme color, display: `standalone`, icons
+- `public/icons/` — icon set at 192×192 and 512×512 (generated from `assets/cover.png`)
+- `next.config.ts` — wrapped with `next-pwa` to generate a service worker at build time
+
+### Service worker behaviour
+- Caches the app shell (JS bundles, CSS, fonts) on install
+- Serves cached assets when offline
+- Does not cache Firestore responses — sync is handled by the app layer, not the SW
+
+### Package
+Use `@ducanh2912/next-pwa` (the actively maintained fork of `next-pwa`).
 
 ## New Files
 
 ### `lib/firebase.ts`
-- Initializes the Firebase app from env vars (`NEXT_PUBLIC_FIREBASE_*`)
-- Exports `db` (Firestore client) and `auth` (Auth client)
-- Exports `getAuthUser(): Promise<{ uid: string } | null>` — returns the real Firebase user, the dev bypass user, or `null` if signed out
-- Exports `signInWithGoogle()` and `signOut()`
+- Initializes Firebase app from `NEXT_PUBLIC_FIREBASE_*` env vars
+- Exports `db` (Firestore client), `auth` (Auth client)
+- Exports `getAuthUser(): Promise<{ uid: string } | null>`
+- Exports `signInWithGoogle()`, `signOut()`
+
+### `lib/sync.ts`
+Owns all sync logic. Keeps Firebase out of `data.ts` and `App.tsx`.
+
+- `pushToFirestore(uid, projects, lastModified)` — writes `{ projects, lastModified }` to Firestore. Fire-and-forget; logs errors but does not throw.
+- `pullFromFirestore(uid): Promise<{ projects, lastModified } | null>` — reads Firestore document. Returns `null` if offline or document missing.
+- `syncOnLoad(uid)` — called once after app mounts. Pulls from Firestore, compares `lastModified`, updates localStorage and returns new projects if Firestore is newer.
+- `syncOnReconnect(uid)` — registered on `window` `online` event. Pushes current localStorage state to Firestore.
 
 ## Changed Files
 
 ### `lib/data.ts`
-- Replace synchronous `loadProjects()` / `saveProjects()` with async `fetchProjects(uid: string): Promise<ProjectNode[]>` and `persistProjects(uid: string, projects: ProjectNode[]): Promise<void>`
-- `fetchProjects`: reads `/users/{uid}/data/projects`. If the document doesn't exist, checks `localStorage` for existing data (one-time migration), writes it to Firestore, and returns it.
-- `persistProjects`: writes `{ projects }` to `/users/{uid}/data/projects`.
+- `saveProjects(projects)` — writes `{ projects, lastModified: new Date().toISOString() }` to localStorage, then calls `pushToFirestore` (fire-and-forget, no `await`).
+- `loadProjects()` — unchanged. Reads `projects` array from localStorage synchronously.
+- `seedProjects()` — sets `lastModified` when writing initial seed data.
 
 ### `App.tsx`
-- Adds auth state: `'loading' | 'signed-out' | 'signed-in'`
-- On mount: calls `getAuthUser()`. If signed in, calls `fetchProjects(uid)` and enters normal app flow. If signed out, renders the sign-in screen. If loading, renders nothing (avoids flash).
-- The save `useEffect` calls `persistProjects(uid, projects)` instead of `saveProjects()`.
-- Renders a `<SignInScreen>` component (new, small) when `authState === 'signed-out'`.
+- Auth state: `'loading' | 'signed-out' | 'signed-in'`
+- On mount:
+  1. Check `getAuthUser()` → if signed out, show `<SignInScreen>`
+  2. If signed in, `loadProjects()` → render immediately
+  3. Kick off `syncOnLoad(uid)` async — if it returns newer projects, update state
+  4. Register `syncOnReconnect(uid)` on `window` `online` event
+- Save `useEffect` unchanged in structure — `saveProjects()` now handles the async push internally.
+- Renders `<SignInScreen>` (new component) when signed out.
 
 ### `ViewApp.tsx`
-- On mount: calls `getAuthUser()`, then `fetchProjects(uid)` to load data.
-- Read-only — never calls `persistProjects`.
-- Reads are unauthenticated — no sign-in required to view a shared `/view` link. `getAuthUser()` is not called in `ViewApp.tsx`; `fetchProjects` uses a hardcoded owner UID (from env var `NEXT_PUBLIC_FIREBASE_OWNER_UID`) to locate the document.
+- Reads directly from Firestore (not localStorage — viewer is on a different device/browser).
+- Uses `NEXT_PUBLIC_FIREBASE_OWNER_UID` to locate the document — no auth required for reads.
+- Falls back to a "No projects found" empty state if Firestore is unreachable.
 
-## One-Time localStorage Migration
-
-On the first `fetchProjects` call after migration, if the Firestore document does not exist:
-1. Read `localStorage.getItem('project-tracker:v3')`
-2. Parse and write to Firestore
-3. Leave the localStorage key in place as a fallback (do not clear it)
-
-This is handled inside `fetchProjects` transparently — no separate migration script or user action required.
-
-## Auth State in UI
-
-`App.tsx` renders one of three states:
-
-| Auth state | Renders |
-|---|---|
-| `loading` | Nothing (blank, no flash) |
-| `signed-out` | `<SignInScreen>` — centered card with "Sign in with Google" button |
-| `signed-in` | Full app as today |
-
-`SignInScreen` is a small new component — a centered card with the app name and a single Google sign-in button. No navigation, no project data.
+### `next.config.ts`
+- Wrapped with `withPWA` from `@ducanh2912/next-pwa`.
+- PWA disabled in development (`disable: process.env.NODE_ENV === 'development'`).
 
 ## Environment Variables
-
-All prefixed `NEXT_PUBLIC_` so they're available in the browser bundle. Set in Vercel project settings for production; in `.env.local` for development.
 
 ```
 NEXT_PUBLIC_FIREBASE_API_KEY
@@ -96,13 +132,21 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
 NEXT_PUBLIC_FIREBASE_APP_ID
-NEXT_PUBLIC_FIREBASE_OWNER_UID  # your UID, used by /view to locate the data document
-NEXT_PUBLIC_DEV_BYPASS_AUTH     # dev only, in .env.local
+NEXT_PUBLIC_FIREBASE_OWNER_UID   # your UID, used by /view to locate the data document
+NEXT_PUBLIC_DEV_BYPASS_AUTH      # dev only, in .env.local
 ```
+
+## One-Time localStorage Migration
+
+On the first `syncOnLoad` call, if the Firestore document does not exist:
+1. Read current localStorage data
+2. Push it to Firestore as the initial state
+3. Leave localStorage intact
 
 ## Out of Scope
 
-- Multi-user support (other users' projects)
-- Real-time listeners / live sync across open tabs (can be added later via `onSnapshot`)
+- Multi-user support
+- Real-time listeners across open tabs (`onSnapshot`) — can be added later
 - Firebase Hosting (app stays on Vercel)
-- Offline persistence (Firestore's built-in IndexedDB cache provides basic offline reads automatically; explicit `enableIndexedDbPersistence` not configured)
+- Background sync via Service Worker Push API — the `online` event approach is sufficient
+- Explicit IndexedDB upgrade — localStorage is retained as the local store
