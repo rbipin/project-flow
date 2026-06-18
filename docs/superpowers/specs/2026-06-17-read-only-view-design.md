@@ -25,10 +25,10 @@ Add a read-only mode that lets users browse the project tree — including sub-p
 
 ## Routes
 
-| Path | Renders |
-|---|---|
-| `/` | Existing editable dashboard / detail (unchanged) |
-| `/view` | Read-only dashboard |
+| Path              | Renders                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| `/`               | Existing editable dashboard / detail (unchanged)                         |
+| `/view`           | Read-only dashboard                                                      |
 | `/view/[...path]` | Read-only detail; `path` is the same ordered ID array used by `findTrail` |
 
 Both view routes render a "Read-only" badge in the header so the mode is unambiguous.

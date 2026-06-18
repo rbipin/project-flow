@@ -17,23 +17,33 @@ The `samples/` directory contains the original standalone HTML prototype — it 
 ```
 src/
   app/
-    layout.tsx      — root layout, fonts (Hanken Grotesk, JetBrains Mono)
-    page.tsx        — renders <App />
-    globals.css     — CSS variables, base styles
+    layout.tsx               — root layout, fonts (Hanken Grotesk, JetBrains Mono)
+    page.tsx                 — renders <App /> (editable mode)
+    globals.css              — CSS variables, base styles
+    view/
+      page.tsx               — read-only dashboard (/view)
+      [...path]/page.tsx     — read-only project detail (/view/<id>/...)
   components/
-    App.tsx         — app shell, top-level state, routing
-    Dashboard.tsx   — project grid/list view
-    ProjectDetail.tsx — detail view for a node
-    ProjectCard.tsx — card used in grid view
-    ProjectRow.tsx  — row used in list view
-    Roadmap.tsx     — roadmap rendering (track/stations/stepper variants)
-    Ring.tsx        — circular progress ring
-    Modal.tsx       — base modal shell
-    NewProjectModal.tsx — create project flow
-    TweaksPanel.tsx — floating tweaks panel + useTweaks hook
+    App.tsx                  — editable shell, top-level state, routing
+    ViewApp.tsx              — read-only shell, owns navigation only
+    ProjectsShell.tsx        — Dashboard-or-Detail switch, shared by App + ViewApp
+    Dashboard.tsx            — project grid/list view
+    ProjectDetail.tsx        — detail view for a node
+    ProjectCard.tsx          — card used in grid view
+    ProjectRow.tsx           — row used in list view
+    Roadmap.tsx              — roadmap rendering (track/stations/stepper variants)
+    Ring.tsx                 — circular progress ring
+    Modal.tsx                — base modal shell
+    NewProjectModal.tsx      — create project flow
+    TweaksPanel.tsx          — floating tweaks panel + useTweaks hook
+    ThemeToggle.tsx          — light/dark toggle button
   lib/
-    data.ts         — data model, persistence, tree helpers
-    types.ts        — shared TypeScript types
+    data.ts                  — data model, persistence, tree helpers
+    types.ts                 — shared TypeScript types
+docs/
+  superpowers/
+    specs/                   — design specs
+    plans/                   — implementation plans
 ```
 
 ## Architecture
@@ -66,3 +76,6 @@ The `Roadmap` component accepts `variant: "track" | "stations" | "stepper"` and 
 
 ### Stats derivation
 `nodeStats(node)` in `data.ts` recursively derives all display data (progress %, milestone counts, completion state, `markers[]` for roadmap rendering). It is called at render time and never cached — keep it pure and side-effect-free.
+
+### Read-only mode
+`/view` and `/view/[...path]` render the same tree in read-only mode. `ViewApp` owns navigation and reads `localStorage` but never writes projects. All mutation UI is gated by a `readOnly: boolean` prop threaded through `ProjectsShell` → `Dashboard` / `ProjectDetail`. `TweaksPanel` and `NewProjectModal` are not mounted in read-only mode. If the URL path does not resolve to a real node, `ViewApp` redirects to `/view`.

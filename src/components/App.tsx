@@ -22,6 +22,7 @@ import {
 import { Dashboard } from './Dashboard';
 import { ProjectDetail } from './ProjectDetail';
 import { NewProjectModal } from './NewProjectModal';
+import { ThemeToggle } from './ThemeToggle';
 
 const TWEAK_DEFAULTS: TweakValues = {
   roadmapStyle: 'track',
@@ -36,6 +37,7 @@ export function App() {
   const [path, setPath] = useState<string[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [dashView, setDashView] = useState<'grid' | 'list'>('grid');
+  const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hasLoaded = useRef(false);
 
@@ -51,9 +53,25 @@ export function App() {
       const stored = localStorage.getItem('project-tracker:view') as 'grid' | 'list';
       if (stored) setDashView(stored);
     } catch (_) {}
+    try {
+      setDark(localStorage.getItem('project-tracker:theme') === 'dark');
+    } catch (_) {}
     hasLoaded.current = true;
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = dark ? 'dark' : 'light';
+    try { localStorage.setItem('project-tracker:theme', dark ? 'dark' : 'light'); } catch (_) {}
+  }, [dark]);
+
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    root.classList.add('theme-transitioning');
+    setTimeout(() => root.classList.remove('theme-transitioning'), 320);
+    setDark((d) => !d);
+  };
 
   const setView = (v: 'grid' | 'list') => {
     setDashView(v);
@@ -164,6 +182,7 @@ export function App() {
           onCreate={createProject}
         />
       )}
+      <ThemeToggle dark={dark} onToggle={toggleTheme} />
       <TweaksPanel>
         <TweakSection label="Roadmap" />
         <TweakRadio
