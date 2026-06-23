@@ -20,6 +20,8 @@
 
 ![cover](./assets/cover.jpeg)
 
+![demo](./assets/demo.gif)
+
 ---
 
 ## Overview

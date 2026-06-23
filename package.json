@@ -19,6 +19,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "playwright": "^1.61.0",
     "typescript": "latest"
   }
 }
