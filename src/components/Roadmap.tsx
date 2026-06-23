@@ -8,6 +8,7 @@ interface RoadmapProps {
   mini?: boolean;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  readOnly?: boolean;
 }
 
 function CheckIcon() {

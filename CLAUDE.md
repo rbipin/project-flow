@@ -12,6 +12,10 @@ Opens at `http://localhost:3000`. This is a Next.js 15 app using the App Router 
 
 The `samples/` directory contains the original standalone HTML prototype — it is not the active codebase.
 
+### Auth in local development
+
+`.env.local` has `NEXT_PUBLIC_DEV_BYPASS_AUTH=true`. When set, `subscribeToAuthState` in `lib/firebase.ts` immediately resolves with `{ uid: 'dev-user' }`, skipping the Google sign-in gate entirely. Set it to `false` (or remove it) to test real auth — `localhost` must be an authorized domain in the Firebase Console under Authentication → Settings → Authorized domains.
+
 ## Project Structure
 
 ```

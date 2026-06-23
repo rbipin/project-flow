@@ -2,8 +2,9 @@ import type {
   ProjectNode, NodeStats, Marker, FlatNode, SubProject,
   GatheredRelations, ResolvedRelation, RelMeta, RelationType,
 } from './types';
+import { getActiveUid, pushToFirestore } from './sync';
 
-const STORAGE_KEY = 'project-tracker:v3';
+export const STORAGE_KEY = 'project-tracker:v3';
 
 export const uid = (): string => Math.random().toString(36).slice(2, 9);
 
@@ -120,7 +121,10 @@ export function loadProjects(): ProjectNode[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as ProjectNode[];
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (parsed.projects ?? []);
+    }
   } catch (_) {}
   const seed = seedProjects();
   saveProjects(seed);
@@ -129,7 +133,12 @@ export function loadProjects(): ProjectNode[] {
 
 export function saveProjects(projects: ProjectNode[]): void {
   if (typeof window === 'undefined') return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); } catch (_) {}
+  const lastModified = new Date().toISOString();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, lastModified }));
+  } catch (_) {}
+  const activeUid = getActiveUid();
+  if (activeUid) pushToFirestore(activeUid, projects, lastModified);
 }
 
 // ---- recursive stats ---------------------------------------------------------

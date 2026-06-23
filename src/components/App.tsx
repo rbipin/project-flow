@@ -19,10 +19,12 @@ import {
   TweakToggle,
   useTweaks,
 } from './TweaksPanel';
-import { Dashboard } from './Dashboard';
-import { ProjectDetail } from './ProjectDetail';
+import { ProjectsShell } from './ProjectsShell';
 import { NewProjectModal } from './NewProjectModal';
 import { ThemeToggle } from './ThemeToggle';
+import { subscribeToAuthState, signOut } from '@/lib/firebase';
+import { setActiveUid, syncOnLoad, syncOnReconnect } from '@/lib/sync';
+import { SignInScreen } from './SignInScreen';
 
 const TWEAK_DEFAULTS: TweakValues = {
   roadmapStyle: 'track',
@@ -40,15 +42,36 @@ export function App() {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hasLoaded = useRef(false);
+  const skipNextSave = useRef(false);
+  const [authState, setAuthState] = useState<'loading' | 'signed-out' | 'signed-in'>('loading');
+  const [uid, setUid] = useState<string | null>(null);
 
   // Runs before the load effect on mount — hasLoaded is still false, so the write is skipped.
   // After load sets hasLoaded=true, subsequent project changes will trigger a save.
+  // skipNextSave is set before setProjects(remoteProjects) to avoid a redundant Firestore write
+  // when syncOnLoad pulls remote data that is already persisted to localStorage.
   useEffect(() => {
-    if (hasLoaded.current) saveProjects(projects);
+    if (hasLoaded.current && !skipNextSave.current) saveProjects(projects);
+    skipNextSave.current = false;
   }, [projects]);
 
   useEffect(() => {
-    setProjects(loadProjects());
+    return subscribeToAuthState((user) => {
+      if (user) {
+        setUid(user.uid);
+        setActiveUid(user.uid);
+        setAuthState('signed-in');
+      } else {
+        setUid(null);
+        setActiveUid(null);
+        setAuthState('signed-out');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (authState !== 'signed-in' || !uid) return;
+
     try {
       const stored = localStorage.getItem('project-tracker:view') as 'grid' | 'list';
       if (stored) setDashView(stored);
@@ -56,9 +79,22 @@ export function App() {
     try {
       setDark(localStorage.getItem('project-tracker:theme') === 'dark');
     } catch (_) {}
+
+    skipNextSave.current = true;
+    setProjects(loadProjects());
     hasLoaded.current = true;
     setMounted(true);
-  }, []);
+
+    syncOnLoad(uid).then((remoteProjects) => {
+      if (remoteProjects) {
+        skipNextSave.current = true;
+        setProjects(remoteProjects);
+      }
+    });
+
+    const cleanup = syncOnReconnect(uid);
+    return cleanup;
+  }, [authState, uid]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -88,7 +124,6 @@ export function App() {
 
   const trail = findTrail(projects, path);
   const curPath = trail.map((n) => n.id);
-  const current = trail[trail.length - 1] || null;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -147,34 +182,26 @@ export function App() {
     window.scrollTo(0, 0);
   };
 
+  if (authState === 'loading') return null;
+  if (authState === 'signed-out') return <SignInScreen />;
   if (!mounted) return null;
 
   return (
     <div className={'app dens-' + t.density + (t.showRing ? '' : ' no-ring')}>
-      {current ? (
-        <ProjectDetail
-          key={current.id}
-          projects={projects}
-          path={curPath}
-          node={current}
-          trail={trail}
-          variant={variant}
-          onUpdateNode={updateNode}
-          onOpenChild={openChild}
-          onNavigate={navigate}
-          onHome={home}
-          onDeleteNode={deleteNode}
-        />
-      ) : (
-        <Dashboard
-          projects={projects}
-          variant={variant}
-          onOpenPath={navigate}
-          onNew={() => setShowNew(true)}
-          view={dashView}
-          onSetView={setView}
-        />
-      )}
+      <ProjectsShell
+        projects={projects}
+        path={curPath}
+        readOnly={false}
+        view={dashView}
+        variant={variant}
+        onNavigate={navigate}
+        onHome={home}
+        onOpenChild={openChild}
+        onSetView={setView}
+        onNewProject={() => setShowNew(true)}
+        onUpdateNode={updateNode}
+        onDeleteNode={deleteNode}
+      />
       {showNew && (
         <NewProjectModal
           projects={projects}
@@ -183,6 +210,15 @@ export function App() {
         />
       )}
       <ThemeToggle dark={dark} onToggle={toggleTheme} />
+      {process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH !== 'true' && (
+        <button
+          className="btn ghost sm"
+          onClick={() => signOut()}
+          style={{ position: 'fixed', bottom: 14, left: 14, zIndex: 40, fontSize: 12, opacity: 0.6 }}
+        >
+          Sign out
+        </button>
+      )}
       <TweaksPanel>
         <TweakSection label="Roadmap" />
         <TweakRadio

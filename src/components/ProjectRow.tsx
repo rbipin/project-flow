@@ -10,9 +10,10 @@ interface ProjectRowProps {
   variant: 'track' | 'stations' | 'stepper';
   onOpen: () => void;
   label?: string;
+  readOnly?: boolean;
 }
 
-export function ProjectRow({ project, variant, onOpen, label }: ProjectRowProps) {
+export function ProjectRow({ project, variant, onOpen, label, readOnly: _readOnly }: ProjectRowProps) {
   const stats = nodeStats(project);
   const dl = daysLeft(project.due);
   const cardState = stats.complete
