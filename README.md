@@ -1,6 +1,10 @@
 # Project Flow
 
-A local-first project tracker with recursive milestones, roadmaps, and progress rings. All data lives in your browser's localStorage — no backend, no accounts.
+![cover image](./assets/cover.jpeg)
+
+<p align="center">
+  <em>A local-first project tracker with recursive milestones, roadmaps, and progress rings. All data lives in your browser's localStorage — no backend, no accounts</em>
+</p>
 
 ## Features
 
