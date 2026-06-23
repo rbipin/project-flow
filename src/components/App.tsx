@@ -212,6 +212,7 @@ export function App() {
           onNew={() => setShowNew(true)}
           view={dashView}
           onSetView={setView}
+          readOnly={false}
         />
       )}
       {showNew && (

@@ -10,9 +10,10 @@ interface DashboardProps {
   projects: ProjectNode[];
   variant: 'track' | 'stations' | 'stepper';
   onOpenPath: (path: string[]) => void;
-  onNew: () => void;
+  onNew?: () => void;
   view: 'grid' | 'list';
   onSetView: (v: 'grid' | 'list') => void;
+  readOnly: boolean;
 }
 
 export function Dashboard({
@@ -22,6 +23,7 @@ export function Dashboard({
   onNew,
   view,
   onSetView,
+  readOnly,
 }: DashboardProps) {
   const totals = useMemo(() => {
     let tasks = 0, done = 0, ms = 0, msReached = 0, complete = 0;
@@ -47,17 +49,19 @@ export function Dashboard({
           <p className="eyebrow">Project Tracker</p>
           <h1>Your projects</h1>
         </div>
-        <button className="btn primary lg" onClick={onNew}>
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path
-              d="M12 5v14M5 12h14"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-            />
-          </svg>
-          New project
-        </button>
+        {!readOnly && onNew && (
+          <button className="btn primary lg" onClick={onNew}>
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <path
+                d="M12 5v14M5 12h14"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+            </svg>
+            New project
+          </button>
+        )}
       </header>
 
       <div className="stat-strip">
@@ -124,16 +128,17 @@ export function Dashboard({
             key={p.id}
             project={p}
             variant={variant}
+            readOnly={readOnly}
             onOpen={() => onOpenPath([p.id])}
           />
         ))}
-        {!isList && (
+        {!readOnly && !isList && (
           <button className="card new-card" onClick={onNew}>
             <span className="new-plus">+</span>
             <span>Start a new project</span>
           </button>
         )}
-        {isList && (
+        {!readOnly && isList && (
           <button className="row-new" onClick={onNew}>
             <span className="new-plus">+</span> Start a new project
           </button>
@@ -153,6 +158,7 @@ export function Dashboard({
                 project={sp.node}
                 variant={variant}
                 label={sp.parent}
+                readOnly={readOnly}
                 onOpen={() => onOpenPath(sp.path)}
               />
             ))}
