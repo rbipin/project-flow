@@ -19,7 +19,7 @@ export function SignInScreen() {
       <p style={{ color: 'var(--ink-2, #666)', margin: 0 }}>Sign in to access your projects.</p>
       <button
         className="btn primary lg"
-        onClick={() => signInWithGoogle()}
+        onClick={() => signInWithGoogle().catch((e) => console.warn('[auth] sign-in cancelled', e?.code))}
         style={{ display: 'flex', alignItems: 'center', gap: 8 }}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

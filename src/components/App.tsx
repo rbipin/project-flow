@@ -43,13 +43,17 @@ export function App() {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hasLoaded = useRef(false);
+  const skipNextSave = useRef(false);
   const [authState, setAuthState] = useState<'loading' | 'signed-out' | 'signed-in'>('loading');
   const [uid, setUid] = useState<string | null>(null);
 
   // Runs before the load effect on mount — hasLoaded is still false, so the write is skipped.
   // After load sets hasLoaded=true, subsequent project changes will trigger a save.
+  // skipNextSave is set before setProjects(remoteProjects) to avoid a redundant Firestore write
+  // when syncOnLoad pulls remote data that is already persisted to localStorage.
   useEffect(() => {
-    if (hasLoaded.current) saveProjects(projects);
+    if (hasLoaded.current && !skipNextSave.current) saveProjects(projects);
+    skipNextSave.current = false;
   }, [projects]);
 
   useEffect(() => {
@@ -82,7 +86,10 @@ export function App() {
     setMounted(true);
 
     syncOnLoad(uid).then((remoteProjects) => {
-      if (remoteProjects) setProjects(remoteProjects);
+      if (remoteProjects) {
+        skipNextSave.current = true;
+        setProjects(remoteProjects);
+      }
     });
 
     const cleanup = syncOnReconnect(uid);

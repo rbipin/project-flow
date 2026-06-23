@@ -137,8 +137,8 @@ export function saveProjects(projects: ProjectNode[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects, lastModified }));
   } catch (_) {}
-  const uid = getActiveUid();
-  if (uid) pushToFirestore(uid, projects, lastModified);
+  const activeUid = getActiveUid();
+  if (activeUid) pushToFirestore(activeUid, projects, lastModified);
 }
 
 // ---- recursive stats ---------------------------------------------------------
