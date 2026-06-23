@@ -23,6 +23,9 @@ import { Dashboard } from './Dashboard';
 import { ProjectDetail } from './ProjectDetail';
 import { NewProjectModal } from './NewProjectModal';
 import { ThemeToggle } from './ThemeToggle';
+import { subscribeToAuthState, signOut } from '@/lib/firebase';
+import { setActiveUid, syncOnLoad, syncOnReconnect } from '@/lib/sync';
+import { SignInScreen } from './SignInScreen';
 
 const TWEAK_DEFAULTS: TweakValues = {
   roadmapStyle: 'track',
@@ -40,6 +43,8 @@ export function App() {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hasLoaded = useRef(false);
+  const [authState, setAuthState] = useState<'loading' | 'signed-out' | 'signed-in'>('loading');
+  const [uid, setUid] = useState<string | null>(null);
 
   // Runs before the load effect on mount — hasLoaded is still false, so the write is skipped.
   // After load sets hasLoaded=true, subsequent project changes will trigger a save.
@@ -48,7 +53,22 @@ export function App() {
   }, [projects]);
 
   useEffect(() => {
-    setProjects(loadProjects());
+    return subscribeToAuthState((user) => {
+      if (user) {
+        setUid(user.uid);
+        setActiveUid(user.uid);
+        setAuthState('signed-in');
+      } else {
+        setUid(null);
+        setActiveUid(null);
+        setAuthState('signed-out');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (authState !== 'signed-in' || !uid) return;
+
     try {
       const stored = localStorage.getItem('project-tracker:view') as 'grid' | 'list';
       if (stored) setDashView(stored);
@@ -56,9 +76,18 @@ export function App() {
     try {
       setDark(localStorage.getItem('project-tracker:theme') === 'dark');
     } catch (_) {}
+
+    setProjects(loadProjects());
     hasLoaded.current = true;
     setMounted(true);
-  }, []);
+
+    syncOnLoad(uid).then((remoteProjects) => {
+      if (remoteProjects) setProjects(remoteProjects);
+    });
+
+    const cleanup = syncOnReconnect(uid);
+    return cleanup;
+  }, [authState, uid]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -147,6 +176,8 @@ export function App() {
     window.scrollTo(0, 0);
   };
 
+  if (authState === 'loading') return null;
+  if (authState === 'signed-out') return <SignInScreen />;
   if (!mounted) return null;
 
   return (
