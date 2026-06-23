@@ -24,42 +24,57 @@ import { Roadmap } from './Roadmap';
 // ---- TaskChecklist -------------------------------------------
 interface TaskChecklistProps {
   tasks: Task[];
-  onChange: (tasks: Task[]) => void;
+  onChange?: (tasks: Task[]) => void;
   placeholder?: string;
+  readOnly: boolean;
 }
 
-function TaskChecklist({ tasks, onChange, placeholder }: TaskChecklistProps) {
+function TaskChecklist({ tasks, onChange, placeholder, readOnly }: TaskChecklistProps) {
   const [draft, setDraft] = useState('');
   const add = () => {
     const v = draft.trim();
-    if (!v) return;
+    if (!v || !onChange) return;
     onChange([...tasks, { id: uid(), title: v, done: false }]);
     setDraft('');
   };
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    if (!onChange) return;
     onChange(tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const remove = (id: string) => onChange(tasks.filter((t) => t.id !== id));
+  };
+  const remove = (id: string) => {
+    if (!onChange) return;
+    onChange(tasks.filter((t) => t.id !== id));
+  };
   return (
     <div>
-      <div className="task-adder big">
-        <input
-          className="input"
-          value={draft}
-          placeholder={placeholder || 'Add a task…'}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <button className="btn primary" onClick={add}>
-          Add task
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="task-adder big">
+          <input
+            className="input"
+            value={draft}
+            placeholder={placeholder || 'Add a task…'}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+          />
+          <button className="btn primary" onClick={add}>
+            Add task
+          </button>
+        </div>
+      )}
       <ul className="task-list">
         {tasks.length === 0 && (
-          <li className="task-empty">No tasks yet — add the first one above.</li>
+          <li className="task-empty">
+            {readOnly ? 'No tasks yet.' : 'No tasks yet — add the first one above.'}
+          </li>
         )}
         {tasks.map((t) => (
           <li key={t.id} className={'task-row' + (t.done ? ' done' : '')}>
-            <button className="check" onClick={() => toggle(t.id)} aria-label="Toggle">
+            <button
+              className="check"
+              onClick={() => toggle(t.id)}
+              aria-label="Toggle"
+              disabled={readOnly}
+            >
               {t.done && (
                 <svg viewBox="0 0 24 24" width="14" height="14">
                   <path
@@ -74,16 +89,18 @@ function TaskChecklist({ tasks, onChange, placeholder }: TaskChecklistProps) {
               )}
             </button>
             <span className="task-title">{t.title}</span>
-            <button className="task-del" onClick={() => remove(t.id)} aria-label="Delete">
-              <svg viewBox="0 0 24 24" width="15" height="15">
-                <path
-                  d="M6 6l12 12M18 6L6 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
+            {!readOnly && (
+              <button className="task-del" onClick={() => remove(t.id)} aria-label="Delete">
+                <svg viewBox="0 0 24 24" width="15" height="15">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -96,10 +113,11 @@ interface ChildPanelProps {
   child: ProjectNode;
   variant: 'track' | 'stations' | 'stepper';
   path: string[];
-  onUpdateChild: (child: ProjectNode) => void;
-  onDeleteChild: (id: string) => void;
+  onUpdateChild?: (child: ProjectNode) => void;
+  onDeleteChild?: (id: string) => void;
   onOpen: () => void;
   onNavigate: (path: string[]) => void;
+  readOnly: boolean;
 }
 
 function ChildPanel({
@@ -110,6 +128,7 @@ function ChildPanel({
   onDeleteChild,
   onOpen,
   onNavigate,
+  readOnly,
 }: ChildPanelProps) {
   const st = nodeStats(child);
   const status = st.complete ? 'Complete' : st.started ? 'In progress' : 'Not started';
@@ -133,18 +152,27 @@ function ChildPanel({
             )}
           </span>
           <div className="sub-titles">
-            <input
-              className="sub-name-input"
-              value={child.name}
-              placeholder="Milestone name"
-              onChange={(e) => onUpdateChild({ ...child, name: e.target.value })}
-            />
-            <input
-              className="sub-blurb-input"
-              value={child.blurb || ''}
-              placeholder="Add a description…"
-              onChange={(e) => onUpdateChild({ ...child, blurb: e.target.value })}
-            />
+            {readOnly ? (
+              <>
+                <div className="sub-name-input" aria-readonly>{child.name}</div>
+                {child.blurb && <div className="sub-blurb-input" aria-readonly>{child.blurb}</div>}
+              </>
+            ) : (
+              <>
+                <input
+                  className="sub-name-input"
+                  value={child.name}
+                  placeholder="Milestone name"
+                  onChange={(e) => onUpdateChild && onUpdateChild({ ...child, name: e.target.value })}
+                />
+                <input
+                  className="sub-blurb-input"
+                  value={child.blurb || ''}
+                  placeholder="Add a description…"
+                  onChange={(e) => onUpdateChild && onUpdateChild({ ...child, blurb: e.target.value })}
+                />
+              </>
+            )}
           </div>
         </div>
         <div className="sub-head-right">
@@ -164,22 +192,24 @@ function ChildPanel({
               />
             </svg>
           </button>
-          <button
-            className="icon-btn"
-            onClick={() => onDeleteChild(child.id)}
-            aria-label="Delete milestone"
-          >
-            <svg viewBox="0 0 24 24" width="17" height="17">
-              <path
-                d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+          {!readOnly && (
+            <button
+              className="icon-btn"
+              onClick={() => onDeleteChild && onDeleteChild(child.id)}
+              aria-label="Delete milestone"
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17">
+                <path
+                  d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       <div className="sub-bar">
@@ -189,14 +219,19 @@ function ChildPanel({
         <TaskChecklist
           tasks={child.tasks}
           placeholder={`Add a task to "${child.name || 'this milestone'}"…`}
-          onChange={(tasks) => onUpdateChild({ ...child, tasks })}
+          onChange={
+            readOnly || !onUpdateChild
+              ? undefined
+              : (tasks) => onUpdateChild({ ...child, tasks })
+          }
+          readOnly={readOnly}
         />
       ) : (
         <div className="sub-asproject">
           <p className="sub-asproject-note">
             &quot;{child.name || 'This milestone'}&quot; is its own project with{' '}
             {st.milestoneCount} milestones and {st.total} task{st.total === 1 ? '' : 's'} inside.
-            Open it to manage everything — or jump straight into one:
+            Open it to {readOnly ? 'view' : 'manage'} everything — or jump straight into one:
           </p>
           <div className="sub-childlist">
             {st.markers.map((m) => (
@@ -291,7 +326,8 @@ interface RelationshipsPanelProps {
   node: ProjectNode;
   relations: GatheredRelations;
   onOpen: (path: string[]) => void;
-  onUpdateNode: (node: ProjectNode) => void;
+  onUpdateNode?: (node: ProjectNode) => void;
+  readOnly: boolean;
 }
 
 function RelationshipsPanel({
@@ -300,6 +336,7 @@ function RelationshipsPanel({
   relations,
   onOpen,
   onUpdateNode,
+  readOnly,
 }: RelationshipsPanelProps) {
   const [adding, setAdding] = useState(false);
   const [target, setTarget] = useState('');
@@ -313,12 +350,13 @@ function RelationshipsPanel({
   const options = flattenNodes(projects).filter((o) => !exclude.has(o.id));
 
   const removeOut = (idx: number) => {
+    if (!onUpdateNode) return;
     const rels = (node.relations || []).slice();
     rels.splice(idx, 1);
     onUpdateNode({ ...node, relations: rels });
   };
   const addLink = () => {
-    if (!target) return;
+    if (!target || !onUpdateNode) return;
     onUpdateNode({
       ...node,
       relations: [...(node.relations || []), { to: target, type }],
@@ -334,11 +372,13 @@ function RelationshipsPanel({
         <h2>
           Relationships <span className="count">{relations.count}</span>
         </h2>
-        <button className="btn ghost sm" onClick={() => setAdding((a) => !a)}>
-          {adding ? 'Cancel' : '+ Link'}
-        </button>
+        {!readOnly && (
+          <button className="btn ghost sm" onClick={() => setAdding((a) => !a)}>
+            {adding ? 'Cancel' : '+ Link'}
+          </button>
+        )}
       </div>
-      {adding && (
+      {!readOnly && adding && (
         <div className="rel-add">
           <select
             className="input"
@@ -363,14 +403,23 @@ function RelationshipsPanel({
         </div>
       )}
       {relations.count === 0 && !adding && (
-        <p className="rel-empty">
-          No links yet. Use <b>+ Link</b> to connect this to other projects or milestones.
-        </p>
+        readOnly ? (
+          <p className="rel-empty">No links.</p>
+        ) : (
+          <p className="rel-empty">
+            No links yet. Use <b>+ Link</b> to connect this to other projects or milestones.
+          </p>
+        )
       )}
       {relations.outgoing.length > 0 && (
         <ul className="rel-list">
           {relations.outgoing.map((rel, i) => (
-            <RelItem key={'o' + i} rel={rel} onOpen={onOpen} onRemove={() => removeOut(i)} />
+            <RelItem
+              key={'o' + i}
+              rel={rel}
+              onOpen={onOpen}
+              onRemove={readOnly ? undefined : () => removeOut(i)}
+            />
           ))}
         </ul>
       )}
@@ -425,11 +474,12 @@ export interface ProjectDetailProps {
   node: ProjectNode;
   trail: ProjectNode[];
   variant: 'track' | 'stations' | 'stepper';
-  onUpdateNode: (node: ProjectNode) => void;
+  onUpdateNode?: (node: ProjectNode) => void;
   onOpenChild: (childId: string) => void;
   onNavigate: (path: string[]) => void;
   onHome: () => void;
-  onDeleteNode: (path: string[]) => void;
+  onDeleteNode?: (path: string[]) => void;
+  readOnly: boolean;
 }
 
 export function ProjectDetail({
@@ -443,6 +493,7 @@ export function ProjectDetail({
   onNavigate,
   onHome,
   onDeleteNode,
+  readOnly,
 }: ProjectDetailProps) {
   const stats = nodeStats(node);
   const relations = gatherRelations(projects, node);
@@ -464,14 +515,18 @@ export function ProjectDetail({
 
   const selected = children.find((c) => c.id === selectedId);
 
-  const updateChild = (nc: ProjectNode) =>
+  const updateChild = (nc: ProjectNode) => {
+    if (!onUpdateNode) return;
     onUpdateNode({ ...node, children: children.map((c) => (c.id === nc.id ? nc : c)) });
+  };
   const deleteChild = (id: string) => {
+    if (!onUpdateNode) return;
     const remaining = children.filter((c) => c.id !== id);
     onUpdateNode({ ...node, children: remaining });
     setSelectedId(remaining[0] ? remaining[0].id : null);
   };
   const addMilestone = () => {
+    if (!onUpdateNode) return;
     const ns: ProjectNode = {
       id: uid(),
       name: 'New milestone',
@@ -492,17 +547,26 @@ export function ProjectDetail({
       <Breadcrumb trail={trail} path={path} onNavigate={onNavigate} onHome={onHome} />
       <header className="detail-head">
         <div className="dh-left">
-          <input
-            className="dh-name-input"
-            value={node.name}
-            onChange={(e) => onUpdateNode({ ...node, name: e.target.value })}
-          />
-          <input
-            className="dh-blurb-input"
-            value={node.blurb || ''}
-            placeholder="Add a description…"
-            onChange={(e) => onUpdateNode({ ...node, blurb: e.target.value })}
-          />
+          {readOnly ? (
+            <>
+              <div className="dh-name-input" aria-readonly>{node.name}</div>
+              {node.blurb && <div className="dh-blurb-input" aria-readonly>{node.blurb}</div>}
+            </>
+          ) : (
+            <>
+              <input
+                className="dh-name-input"
+                value={node.name}
+                onChange={(e) => onUpdateNode && onUpdateNode({ ...node, name: e.target.value })}
+              />
+              <input
+                className="dh-blurb-input"
+                value={node.blurb || ''}
+                placeholder="Add a description…"
+                onChange={(e) => onUpdateNode && onUpdateNode({ ...node, blurb: e.target.value })}
+              />
+            </>
+          )}
           <div className="dh-meta">
             {isTop && node.created && (
               <span className="chip">Started {fmtDate(node.created)}</span>
@@ -523,9 +587,11 @@ export function ProjectDetail({
             {!isTop && trail.length >= 2 && (
               <span className="chip">Part of {trail[trail.length - 2].name}</span>
             )}
-            <button className="chip chip-btn danger" onClick={() => onDeleteNode(path)}>
-              {isTop ? 'Delete project' : 'Delete this'}
-            </button>
+            {!readOnly && (
+              <button className="chip chip-btn danger" onClick={() => onDeleteNode && onDeleteNode(path)}>
+                {isTop ? 'Delete project' : 'Delete this'}
+              </button>
+            )}
           </div>
         </div>
         <div className="dh-right">
@@ -555,7 +621,8 @@ export function ProjectDetail({
         node={node}
         relations={relations}
         onOpen={onNavigate}
-        onUpdateNode={onUpdateNode}
+        onUpdateNode={readOnly ? undefined : onUpdateNode}
+        readOnly={readOnly}
       />
 
       {children.length > 0 ? (
@@ -571,9 +638,11 @@ export function ProjectDetail({
                     Up next: <b>{nextMarker.label}</b>
                   </span>
                 ) : null}
-                <button className="btn ghost sm" onClick={addMilestone}>
-                  + Add milestone
-                </button>
+                {!readOnly && (
+                  <button className="btn ghost sm" onClick={addMilestone}>
+                    + Add milestone
+                  </button>
+                )}
               </div>
             </div>
             <div className={'roadmap-stage v-' + variant}>
@@ -582,10 +651,13 @@ export function ProjectDetail({
                 variant={variant}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                readOnly={readOnly}
               />
             </div>
             <p className="rp-hint">
-              Click a milestone to manage it below · open it to make it its own project.
+              {readOnly
+                ? 'Click a milestone to preview it below · open it to drill in.'
+                : 'Click a milestone to manage it below · open it to make it its own project.'}
             </p>
           </section>
 
@@ -594,10 +666,11 @@ export function ProjectDetail({
               child={selected}
               variant={variant}
               path={path}
-              onUpdateChild={updateChild}
-              onDeleteChild={deleteChild}
+              onUpdateChild={readOnly ? undefined : updateChild}
+              onDeleteChild={readOnly ? undefined : deleteChild}
               onOpen={() => onOpenChild(selected.id)}
               onNavigate={onNavigate}
+              readOnly={readOnly}
             />
           )}
 
@@ -617,7 +690,10 @@ export function ProjectDetail({
               </div>
               <TaskChecklist
                 tasks={node.tasks}
-                onChange={(tasks) => onUpdateNode({ ...node, tasks })}
+                onChange={
+                  readOnly || !onUpdateNode ? undefined : (tasks) => onUpdateNode({ ...node, tasks })
+                }
+                readOnly={readOnly}
               />
             </section>
           )}
@@ -628,16 +704,21 @@ export function ProjectDetail({
             <h2>
               Tasks <span className="count">{stats.done}/{stats.total}</span>
             </h2>
-            <button className="btn ghost sm" onClick={addMilestone}>
-              Break into milestones
-            </button>
+            {!readOnly && (
+              <button className="btn ghost sm" onClick={addMilestone}>
+                Break into milestones
+              </button>
+            )}
           </div>
           <div className="sub-bar" style={{ marginTop: 14 }}>
             <div className="sub-bar-fill" style={{ width: stats.pct * 100 + '%' }} />
           </div>
           <TaskChecklist
             tasks={node.tasks || []}
-            onChange={(tasks) => onUpdateNode({ ...node, tasks })}
+            onChange={
+              readOnly || !onUpdateNode ? undefined : (tasks) => onUpdateNode({ ...node, tasks })
+            }
+            readOnly={readOnly}
           />
         </section>
       )}

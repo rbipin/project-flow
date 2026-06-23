@@ -203,6 +203,7 @@ export function App() {
           onNavigate={navigate}
           onHome={home}
           onDeleteNode={deleteNode}
+          readOnly={false}
         />
       ) : (
         <Dashboard
