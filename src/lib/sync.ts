@@ -1,8 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { ProjectNode } from './types';
-
-const STORAGE_KEY = 'project-tracker:v3';
+import { STORAGE_KEY } from './data';
 
 let activeUid: string | null = null;
 export function setActiveUid(uid: string | null): void { activeUid = uid; }

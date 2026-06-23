@@ -81,6 +81,7 @@ export function App() {
       setDark(localStorage.getItem('project-tracker:theme') === 'dark');
     } catch (_) {}
 
+    skipNextSave.current = true;
     setProjects(loadProjects());
     hasLoaded.current = true;
     setMounted(true);
@@ -221,6 +222,15 @@ export function App() {
         />
       )}
       <ThemeToggle dark={dark} onToggle={toggleTheme} />
+      {process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH !== 'true' && (
+        <button
+          className="btn ghost sm"
+          onClick={() => signOut()}
+          style={{ position: 'fixed', bottom: 14, left: 14, zIndex: 40, fontSize: 12, opacity: 0.6 }}
+        >
+          Sign out
+        </button>
+      )}
       <TweaksPanel>
         <TweakSection label="Roadmap" />
         <TweakRadio

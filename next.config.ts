@@ -8,8 +8,6 @@ const withPWA = withPWAInit({
   aggressiveFrontEndNavCaching: true,
 });
 
-const nextConfig: NextConfig = {
-  turbopack: {},
-};
+const nextConfig: NextConfig = {};
 
 export default withPWA(nextConfig);

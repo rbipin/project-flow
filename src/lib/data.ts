@@ -4,7 +4,7 @@ import type {
 } from './types';
 import { getActiveUid, pushToFirestore } from './sync';
 
-const STORAGE_KEY = 'project-tracker:v3';
+export const STORAGE_KEY = 'project-tracker:v3';
 
 export const uid = (): string => Math.random().toString(36).slice(2, 9);
 
