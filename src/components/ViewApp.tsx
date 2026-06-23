@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadProjects, findTrail } from '@/lib/data';
+import { fetchOwnerProjects } from '@/lib/sync';
 import type { ProjectNode } from '@/lib/types';
 import { ProjectsShell } from './ProjectsShell';
 import { ThemeToggle } from './ThemeToggle';
@@ -27,7 +28,6 @@ export function ViewApp({ path }: ViewAppProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setProjects(loadProjects());
     try {
       const stored = localStorage.getItem('project-tracker:view') as 'grid' | 'list' | null;
       if (stored) setViewState(stored);
@@ -35,7 +35,11 @@ export function ViewApp({ path }: ViewAppProps) {
     try {
       setDark(localStorage.getItem('project-tracker:theme') === 'dark');
     } catch (_) {}
-    setMounted(true);
+
+    fetchOwnerProjects().then((remote) => {
+      setProjects(remote ?? loadProjects());
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {

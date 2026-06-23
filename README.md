@@ -177,22 +177,72 @@ Opens at `http://localhost:3000`. Demo data is seeded automatically on first loa
 
 ### Environment variables
 
-Copy `.env.local.example` to `.env.local` (or create it) and fill in your Firebase config:
+Copy `.env.example` to `.env.local` and fill in your values:
 
 ```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
-
-# Set to "true" to skip Google sign-in and use a local dev-user
-NEXT_PUBLIC_DEV_BYPASS_AUTH=true
+cp .env.example .env.local
 ```
 
-With `NEXT_PUBLIC_DEV_BYPASS_AUTH=true`, the auth gate is skipped entirely — no Firebase project required for local development.
+#### Skip Firebase for local dev
+
+Set `NEXT_PUBLIC_DEV_BYPASS_AUTH=true` to skip Google sign-in entirely and use a local `dev-user`. No Firebase project needed — demo data seeds from `localStorage`.
+
+#### Full Firebase setup
+
+If you want real auth and Firestore sync, you need a Firebase project. Each step below links to the relevant console page.
+
+**1. Create a Firebase project**
+
+Go to [console.firebase.google.com](https://console.firebase.google.com) → **Add project**. Give it a name, disable Google Analytics if you don't need it, and click through.
+
+**2. Register a web app**
+
+In your project: **Project Settings** (gear icon) → **Your apps** → click the `</>` (Web) icon → register the app. After registering, Firebase shows you a config object like:
+
+```js
+const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "...",
+  measurementId: "..."   // only if you enabled Analytics
+};
+```
+
+Copy these values into `.env.local`:
+
+| Variable | Where it comes from |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | `apiKey` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `authDomain` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `projectId` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `storageBucket` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | `appId` |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` | `measurementId` (optional) |
+
+**3. Enable Google Sign-In**
+
+**Authentication** → **Sign-in method** → **Google** → toggle **Enable** → save.
+
+Then under **Authentication** → **Settings** → **Authorized domains**, add `localhost` if it isn't already listed (required for sign-in to work during local development).
+
+**4. Create a Firestore database**
+
+**Firestore Database** → **Create database** → choose **production mode** → pick a region close to you → done. Start in production mode; the app uses per-user paths (`users/{uid}/data/projects`) and you can set rules later.
+
+**5. Get your Owner UID**
+
+`NEXT_PUBLIC_FIREBASE_OWNER_UID` restricts sign-in to a single user (you). To find your UID:
+
+1. Run the app with the Firebase config in place and `DEV_BYPASS_AUTH=false`.
+2. Sign in with Google.
+3. Go to **Authentication** → **Users** in the Firebase Console — your UID is listed in the **User UID** column.
+4. Paste it into `.env.local` as `NEXT_PUBLIC_FIREBASE_OWNER_UID`.
+
+If this variable is left empty, any Google-authenticated user can sign in.
 
 ---
 

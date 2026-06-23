@@ -33,9 +33,16 @@ export function subscribeToAuthState(
     callback({ uid: 'dev-user' });
     return () => {};
   }
-  return onAuthStateChanged(auth, (user) =>
-    callback(user ? { uid: user.uid } : null),
-  );
+  const ownerUid = process.env.NEXT_PUBLIC_FIREBASE_OWNER_UID;
+  return onAuthStateChanged(auth, (user) => {
+    if (!user) { callback(null); return; }
+    if (ownerUid && user.uid !== ownerUid) {
+      firebaseSignOut(auth);
+      callback(null);
+      return;
+    }
+    callback({ uid: user.uid });
+  });
 }
 
 export async function signInWithGoogle(): Promise<void> {

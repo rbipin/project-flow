@@ -77,6 +77,13 @@ export async function syncOnLoad(uid: string): Promise<ProjectNode[] | null> {
   return null;
 }
 
+export async function fetchOwnerProjects(): Promise<ProjectNode[] | null> {
+  const ownerUid = process.env.NEXT_PUBLIC_FIREBASE_OWNER_UID;
+  if (!ownerUid) return null;
+  const result = await pullFromFirestore(ownerUid);
+  return result?.projects ?? null;
+}
+
 export function syncOnReconnect(uid: string): () => void {
   const handler = () => {
     const local = readLocalRaw();
