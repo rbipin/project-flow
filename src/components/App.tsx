@@ -19,8 +19,7 @@ import {
   TweakToggle,
   useTweaks,
 } from './TweaksPanel';
-import { Dashboard } from './Dashboard';
-import { ProjectDetail } from './ProjectDetail';
+import { ProjectsShell } from './ProjectsShell';
 import { NewProjectModal } from './NewProjectModal';
 import { ThemeToggle } from './ThemeToggle';
 import { subscribeToAuthState, signOut } from '@/lib/firebase';
@@ -125,7 +124,6 @@ export function App() {
 
   const trail = findTrail(projects, path);
   const curPath = trail.map((n) => n.id);
-  const current = trail[trail.length - 1] || null;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -190,32 +188,20 @@ export function App() {
 
   return (
     <div className={'app dens-' + t.density + (t.showRing ? '' : ' no-ring')}>
-      {current ? (
-        <ProjectDetail
-          key={current.id}
-          projects={projects}
-          path={curPath}
-          node={current}
-          trail={trail}
-          variant={variant}
-          onUpdateNode={updateNode}
-          onOpenChild={openChild}
-          onNavigate={navigate}
-          onHome={home}
-          onDeleteNode={deleteNode}
-          readOnly={false}
-        />
-      ) : (
-        <Dashboard
-          projects={projects}
-          variant={variant}
-          onOpenPath={navigate}
-          onNew={() => setShowNew(true)}
-          view={dashView}
-          onSetView={setView}
-          readOnly={false}
-        />
-      )}
+      <ProjectsShell
+        projects={projects}
+        path={curPath}
+        readOnly={false}
+        view={dashView}
+        variant={variant}
+        onNavigate={navigate}
+        onHome={home}
+        onOpenChild={openChild}
+        onSetView={setView}
+        onNewProject={() => setShowNew(true)}
+        onUpdateNode={updateNode}
+        onDeleteNode={deleteNode}
+      />
       {showNew && (
         <NewProjectModal
           projects={projects}
