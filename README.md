@@ -50,8 +50,8 @@ Data lives in `localStorage` first. When you sign in with Google, it syncs to Fi
 ---
 
 ## Tech Stack
-
-| Layer | Choice |
+<!-- techstack -->
+| Layer | Technology |
 |---|---|
 | Framework | [Next.js 15](https://nextjs.org) — App Router, React Server Components |
 | UI | React 19, TypeScript — zero external UI libraries, all components hand-written |
@@ -61,7 +61,7 @@ Data lives in `localStorage` first. When you sign in with Google, it syncs to Fi
 | Fonts | Hanken Grotesk (UI), JetBrains Mono (code/mono contexts) |
 | PWA | `@ducanh2912/next-pwa` — service worker + manifest |
 | Package manager | pnpm |
-
+<!-- /techstack -->
 ---
 
 ## Architecture
