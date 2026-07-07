@@ -32,34 +32,21 @@ Data lives in `localStorage` first. When you sign in with Google, it syncs to Fi
 
 ---
 
-## Features
-
-| | |
-|---|---|
-| **Recursive node tree** | Projects contain milestones; milestones can contain sub-projects, indefinitely |
-| **Three roadmap styles** | Switch between Track, Stations, and Stepper layouts via the tweaks panel |
-| **Progress rings** | Circular progress derived on-the-fly from task completion state |
-| **Node relationships** | Link nodes as "depends on", "blocks", or "related to" — both directions resolve |
-| **Cloud sync** | Firestore sync on sign-in; last-modified timestamp wins on conflict |
-| **Read-only share view** | `/view` and `/view/<id>/...` expose any node without mutation controls |
-| **PWA** | Installable, works offline after first load |
-| **Light / dark theme** | Persisted per browser |
-| **Grid / list toggle** | Persisted per browser |
-| **Tweaks panel** | Accent color, density, roadmap style — all live-editable via postMessage protocol |
-
+## Outcome
+<!-- outcome -->
+A roadmap and project tracking tool that supports infinitely nested projects and milestones, multiple roadmap visualizations (Track, Stations, and Stepper), and automatically calculated progress rings based on task completion. It allows nodes to be linked through dependency and relationship types, syncs data through Firestore with last-modified conflict resolution, and provides read-only shared views for any node. The application is installable as a PWA with offline support, includes persistent light/dark themes and grid/list layouts, and offers a live tweaks panel for adjusting accent colors, density, and roadmap styles.
+<!-- /outcome -->
 ---
 
 ## Tech Stack
 <!-- techstack -->
 | Layer | Technology |
 |---|---|
-| Framework | [Next.js 15](https://nextjs.org) — App Router, React Server Components |
-| UI | React 19, TypeScript — zero external UI libraries, all components hand-written |
+| Framework | Nextjs 15 |
+| UI | React 19, TypeScript |
 | Auth | Firebase Authentication — Google Sign-In |
-| Database | Cloud Firestore — per-user document under `users/{uid}/data/projects` |
-| Local storage | `localStorage` key `project-tracker:v3` — source of truth while offline |
-| Fonts | Hanken Grotesk (UI), JetBrains Mono (code/mono contexts) |
-| PWA | `@ducanh2912/next-pwa` — service worker + manifest |
+| Database | Cloud Firestore |
+| Local storage | localStorage |
 | Package manager | pnpm |
 <!-- /techstack -->
 ---
