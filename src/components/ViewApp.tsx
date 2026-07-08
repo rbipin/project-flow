@@ -11,7 +11,7 @@ import { ThemeToggle } from './ThemeToggle';
 // Hardcoded view-mode display defaults. Mirrors TWEAK_DEFAULTS in App.tsx.
 const VIEW_DEFAULTS = {
   roadmapStyle: 'track' as 'track' | 'stations' | 'stepper',
-  accent: '#E8772E',
+  accent: '#c084fc',
   density: 'regular' as 'compact' | 'regular' | 'comfy',
   showRing: true,
 };

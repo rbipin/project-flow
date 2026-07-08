@@ -28,7 +28,7 @@ import { SignInScreen } from './SignInScreen';
 
 const TWEAK_DEFAULTS: TweakValues = {
   roadmapStyle: 'track',
-  accent: '#E8772E',
+  accent: '#c084fc',
   density: 'regular',
   showRing: true,
 };
@@ -231,7 +231,7 @@ export function App() {
         <TweakColor
           label="Accent"
           value={t.accent}
-          options={['#E8772E', '#E0A100', '#D6552B', '#2F8F6B', '#3B6FE0']}
+          options={['#7B70F5', '#3DA9A0', '#D96C7A', '#2F8F6B', '#3B6FE0']}
           onChange={(v) => setTweak('accent', Array.isArray(v) ? v[0] : v)}
         />
         <TweakRadio
