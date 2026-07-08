@@ -18,13 +18,15 @@ jobs:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: 'latest'
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
