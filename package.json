@@ -21,8 +21,5 @@
     "@types/react-dom": "latest",
     "playwright": "^1.61.0",
     "typescript": "latest"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["@firebase/util", "protobufjs", "sharp"]
   }
 }
