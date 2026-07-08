@@ -42,7 +42,7 @@ A roadmap and project tracking tool that supports infinitely nested projects and
 <!-- techstack -->
 | Layer | Technology |
 |---|---|
-| Framework | Nextjs 15 |
+| Framework | Nextjs 16 |
 | UI | React 19, TypeScript |
 | Auth | Firebase Authentication — Google Sign-In |
 | Database | Cloud Firestore |

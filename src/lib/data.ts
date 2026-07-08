@@ -14,107 +14,6 @@ export const REL: Record<RelationType, RelMeta> = {
   related: { label: 'Related to', rev: 'Related to', tone: 'neutral' },
 };
 
-// ---- builders ----------------------------------------------------------------
-
-function leaf(name: string, blurb: string, tasks: [string, boolean][]): ProjectNode {
-  return {
-    id: uid(), name, blurb, children: [], relations: [],
-    tasks: tasks.map(([title, done]) => ({ id: uid(), title, done })),
-  };
-}
-
-function group(name: string, blurb: string, children: ProjectNode[]): ProjectNode {
-  return { id: uid(), name, blurb, tasks: [], relations: [], children };
-}
-
-// ---- seed --------------------------------------------------------------------
-
-function seedProjects(): ProjectNode[] {
-  const mobile: ProjectNode = {
-    id: uid(), name: 'Mobile App Redesign',
-    blurb: 'Ship the new iOS + Android experience for Q3.',
-    created: '2026-03-02', due: '2026-07-15', relations: [], tasks: [],
-    children: [
-      leaf('Kickoff', 'Align the team and frame the problem.', [
-        ['Stakeholder kickoff workshop', true], ['Competitive audit', true],
-      ]),
-      leaf('Research', 'Understand users and synthesize insights.', [
-        ['User interviews (n=8)', true], ['Synthesize research findings', true],
-      ]),
-      group('Design', 'A project in its own right — IA through design system.', [
-        leaf('Information architecture', 'Structure and navigation.', [
-          ['Site map', true], ['Nav model', true],
-        ]),
-        leaf('Wireframes', 'Low-fi core flows.', [
-          ['Wireframe onboarding', true], ['Wireframe home', true], ['Wireframe settings', false],
-        ]),
-        leaf('Hi-fi screens', 'Polished visual designs.', [
-          ['Hi-fi onboarding', true], ['Hi-fi home', false], ['Hi-fi profile', false],
-        ]),
-        leaf('Design system', 'Reusable tokens + components.', [
-          ['Color + type tokens', false], ['Component library', false],
-        ]),
-      ]),
-      leaf('Build', 'Implement and QA the new experience.', [
-        ['Frontend build — onboarding', false], ['Frontend build — home', false], ['QA pass', false],
-      ]),
-      leaf('Launch', 'Submit and release to stores.', [['App store submission', false]]),
-    ],
-  };
-
-  const marketing: ProjectNode = {
-    id: uid(), name: 'Q3 Marketing Site',
-    blurb: 'New landing pages and brand refresh for launch.',
-    created: '2026-04-10', due: '2026-06-30', relations: [], tasks: [],
-    children: [
-      leaf('Brief', 'Lock the creative direction.', [['Creative brief approved', true]]),
-      leaf('Copy', 'Write the messaging and pages.', [
-        ['Messaging framework', true], ['Homepage copy', true], ['Pricing page copy', false],
-      ]),
-      leaf('Design', 'Visual design of key pages.', [
-        ['Visual design — hero', false], ['Visual design — pricing', false],
-      ]),
-      leaf('Launch', 'Build and ship.', [['Build + deploy', false]]),
-    ],
-  };
-
-  const pipeline: ProjectNode = {
-    id: uid(), name: 'Data Pipeline v2',
-    blurb: 'Migrate ingestion to streaming architecture.',
-    created: '2026-05-01', due: '2026-09-01', relations: [], tasks: [],
-    children: [
-      leaf('Spec', 'Decide the architecture.', [['Architecture spec', true]]),
-      leaf('Prototype', 'Validate the streaming approach.', [
-        ['Spike: Kafka vs Kinesis', false], ['Build prototype consumer', false],
-      ]),
-      leaf('Migrate', 'Move data and traffic over.', [
-        ['Backfill historical data', false], ['Cutover plan', false],
-      ]),
-      leaf('Harden', 'Make it production-ready.', [['Load testing', false]]),
-    ],
-  };
-
-  // relationships
-  const find = (root: ProjectNode, name: string): ProjectNode => {
-    let hit: ProjectNode | null = null;
-    (function walk(n: ProjectNode) {
-      if (n.name === name) hit = n;
-      n.children.forEach(walk);
-    })(root);
-    if (!hit) throw new Error(`node "${name}" not found`);
-    return hit;
-  };
-
-  find(mobile, 'Build').relations.push({ to: find(mobile, 'Design').id, type: 'depends' });
-  find(mobile, 'Launch').relations.push({ to: find(mobile, 'Build').id, type: 'depends' });
-  find(mobile, 'Hi-fi screens').relations.push({ to: find(mobile, 'Wireframes').id, type: 'depends' });
-  marketing.relations.push({ to: mobile.id, type: 'related' });
-  find(marketing, 'Design').relations.push({ to: find(mobile, 'Design system').id, type: 'depends' });
-  pipeline.relations.push({ to: find(mobile, 'Build').id, type: 'blocks' });
-
-  return [mobile, marketing, pipeline];
-}
-
 // ---- persistence -------------------------------------------------------------
 
 export function loadProjects(): ProjectNode[] {
@@ -126,9 +25,7 @@ export function loadProjects(): ProjectNode[] {
       return Array.isArray(parsed) ? parsed : (parsed.projects ?? []);
     }
   } catch (_) {}
-  const seed = seedProjects();
-  saveProjects(seed);
-  return seed;
+  return [];
 }
 
 export function saveProjects(projects: ProjectNode[]): void {
