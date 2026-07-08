@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 'latest'
+          node-version: '24.x'
 
       - uses: pnpm/action-setup@v4
         with:
